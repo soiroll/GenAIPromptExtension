@@ -11,8 +11,9 @@
   ],
   "host_permissions": [
     "*://chatgpt.com/*",
-    "*://gemini.google.com/app/*", 
+    "*://gemini.google.com/app/*",
     "*://claude.ai/chats/*",
+    "*://claude.ai/new/*",
     "*://chat.deepseek.com/*",
     "*://chat.qwen.ai/*",
     "*://grok.com/*"
@@ -26,11 +27,14 @@
         "*://chatgpt.com/*",
         "*://gemini.google.com/app/*",
         "*://claude.ai/chats/*",
+        "*://claude.ai/new/*",
         "*://chat.deepseek.com/*",
         "*://chat.qwen.ai/*",
         "*://grok.com/*"
       ],
-      "js": ["contentScript.js"]
+      "js": [
+        "contentScript.js"
+      ]
     }
   ],
   "commands": {
