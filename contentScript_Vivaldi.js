@@ -149,33 +149,24 @@ function setElementTextForClaude(element, text) {
 }
 
 function setElementTextForChatGPTProseMirror(element, text) {
-  if (!element) return;
-
-  element.focus();
-  
-  // まずエディタをクリア
-  element.innerHTML = '';
-  
-  // 選択をリセット
-  const selection = window.getSelection();
-  selection.removeAllRanges();
-
-  // テキストを1文字ずつ入力する
-  let currentText = '';
-  const inputDelay = 10;
-
-  function insertCharacter(index) {
-    if (index >= text.length) {
+  return new Promise((resolve) => {
+    if (!element) {
+      resolve();
       return;
     }
 
-    const char = text[index];
-    currentText += char;
-
-    // DOMを更新
+    element.focus();
+    
+    // まずエディタをクリア
     element.innerHTML = '';
+    
+    // 選択をリセット
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+
+    // DOMを更新してテキストを一括挿入
     const p = document.createElement('p');
-    p.textContent = currentText;
+    p.textContent = text;
     element.appendChild(p);
 
     // 選択をテキストの末尾に移動
@@ -188,31 +179,29 @@ function setElementTextForChatGPTProseMirror(element, text) {
       selection.addRange(range);
     }
 
-    // inputイベントを発火
-    const inputEvent = new InputEvent('input', {
+    // React向けのイベントを一括発火
+    element.dispatchEvent(new InputEvent('beforeinput', {
       bubbles: true,
       cancelable: true,
       inputType: 'insertText',
-      data: char
-    });
-    element.dispatchEvent(inputEvent);
+      data: text
+    }));
 
-    // 次の文字を入力
+    element.dispatchEvent(new InputEvent('input', {
+      bubbles: true,
+      cancelable: true,
+      inputType: 'insertText',
+      data: text
+    }));
+
     setTimeout(() => {
-      insertCharacter(index + 1);
-    }, inputDelay);
-  }
-
-  // 1文字ずつの入力を開始
-  insertCharacter(0);
-
-  // 全文字入力後にイベントを発火
-  setTimeout(() => {
-    element.dispatchEvent(new Event('change', { bubbles: true }));
-    element.dispatchEvent(new Event('blur', { bubbles: true }));
-    element.focus();
-    element.dispatchEvent(new Event('focus', { bubbles: true }));
-  }, text.length * inputDelay + 100);
+      element.dispatchEvent(new Event('change', { bubbles: true }));
+      element.dispatchEvent(new Event('blur', { bubbles: true }));
+      element.focus();
+      element.dispatchEvent(new Event('focus', { bubbles: true }));
+      resolve();
+    }, 100);
+  });
 }
 
 function setElementText(element, text) {
@@ -383,20 +372,25 @@ function triggerSendAction(siteURL, element) {
     sendClaudeMessage(element);
   }
   else if (siteURL.includes('chatgpt.com')) {
-    console.log('ChatGPT: Sending message via keyboard shortcut...');
-    
-    const keyboardEvent = new KeyboardEvent('keydown', {
-      bubbles: true,
-      cancelable: true,
-      key: "Enter",
-      keyCode: 13,
-      code: "Enter",
-      ctrlKey: false,
-      shiftKey: false
-    });
-    
-    element.dispatchEvent(keyboardEvent);
-    console.log('ChatGPT: Keyboard shortcut dispatched');
+    console.log('ChatGPT: Attempting to send message...');
+    const sendButton = document.querySelector('button[data-testid="send-button"]');
+    if (sendButton) {
+      sendButton.disabled = false;
+      sendButton.click();
+      console.log('ChatGPT: Send button clicked');
+    } else {
+      console.log('ChatGPT: Send button not found, falling back to keyboard...');
+      const keyboardEvent = new KeyboardEvent('keydown', {
+        bubbles: true,
+        cancelable: true,
+        key: "Enter",
+        keyCode: 13,
+        code: "Enter",
+        ctrlKey: false,
+        shiftKey: false
+      });
+      element.dispatchEvent(keyboardEvent);
+    }
   }
   else {
     const keyboardEvent = new KeyboardEvent('keydown', {
@@ -469,7 +463,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           console.log('Element found:', element);
 
           if (elementType === 'chatgpt') {
-            setElementTextForChatGPTProseMirror(element, prompt);
+            await setElementTextForChatGPTProseMirror(element, prompt);
           } else if (elementType === 'quill') {
             setElementTextForQuill(element, prompt);
           } else if (elementType === 'claude') {
@@ -484,11 +478,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           }
 
           // 適切な遅延時間を設定
-          let delayTime = 500;
+          let delayTime = 800; // 全体的に安定のため800ms
           if (location.href.includes('claude.ai')) {
-            delayTime = 800; // Claudeは少し長めに
-          } else if (location.href.includes('chatgpt.com')) {
-            delayTime = prompt.length * 10 + 500;
+            delayTime = 1200; // Claudeは少し長めに
           }
           
           console.log('Waiting for', delayTime, 'ms before sending...');
